@@ -17,7 +17,7 @@ def load_pizza_data(source):
 
     Returns
     -------
-    participants : Int
+    participants : int
         Number of people to be ordered for.
     n_types : int
         Number of pizza types available.
@@ -45,3 +45,30 @@ def load_pizza_data(source):
         raise ValueError('Input file corrupted!')
 
     return participants, n_types, n_type_slices
+
+
+def write_data(n_types, type_list, filename):
+    """
+    This functions creates a pizza order text file.
+    For example:
+    <3
+    0 2 3>
+
+    Parameters
+    ----------
+    n_types : int
+        Number different pizza types
+    type_list: List[int]
+        List of selected input types by type_index
+    filename: String
+        Full global path name of output file with
+        extension
+
+    """
+
+    print('Write order to {}'.format(filename))
+
+    temp_string = " ".join(str(t) for t in type_list)
+    with open(filename, 'w') as file:
+        file.write(str(n_types) + '\n')
+        file.write(temp_string)

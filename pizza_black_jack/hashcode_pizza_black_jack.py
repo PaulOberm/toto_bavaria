@@ -1,9 +1,7 @@
 """Hashcode 2020 excercise
 
 """
-
-
-from load import load_pizza_data as load_data
+from load import load_pizza_data as load_data, write_data
 
 def calculate_pizzas_dumb(participants, n_pizza_types, pizza_types):
     """Determine pizza types and number of feeded
@@ -27,8 +25,8 @@ def calculate_pizzas_dumb(participants, n_pizza_types, pizza_types):
 
     residuals = participants
     type_list = []
-    for index, n_pizza_types in reversed(list(enumerate(pizza_types))):
-        temp_residuals = residuals - n_pizza_types
+    for index, n_pizzas in reversed(list(enumerate(pizza_types))):
+        temp_residuals = residuals - n_pizzas
 
         if temp_residuals >= 0:
             residuals = temp_residuals
@@ -38,7 +36,7 @@ def calculate_pizzas_dumb(participants, n_pizza_types, pizza_types):
     saturation = sum([pizza_types[idx] for idx in type_list])
     unsaturated_participants = participants - saturation
 
-    return type_list, unsaturated_participants
+    return type_list[::-1], unsaturated_participants
 
 def calculate_pizzas_recursive(participants, n_pizza_types, pizza_types):
     """ This function calculates the order list
@@ -50,7 +48,7 @@ def calculate_pizzas_recursive(participants, n_pizza_types, pizza_types):
 
     # No participants left
     if(n_pizza_types <= 0 or participants <= 0):
-        return 0
+        return 0, None
 
     # If weight of the nth item is more than Knapsack of capacity
     # W, then this item cannot be included in the optimal solution
@@ -63,34 +61,60 @@ def calculate_pizzas_recursive(participants, n_pizza_types, pizza_types):
     # By doing so, the case where no element at all is a solution is checked,
     # which seems quite senseless
     # A lot of stuff is calculated way to often by doing so
+    temp, temp_idx = calculate_pizzas_recursive(participants-pizza_types[-1],
+                                                n_pizza_types-1,
+                                                pizza_types[:-1])
+    last_element_included = pizza_types[-1] + temp
+
+    last_element_not_included, _ = calculate_pizzas_recursive(participants,
+                                                              n_pizza_types-1,
+                                                              pizza_types[:-1])
+    # Return the maximum of both cases because:
+    # The maximum can never be exceed, so this is save, but the higher
+    # the closer the addition until the maximum worked then
+    if last_element_included >= last_element_not_included:
+        print(n_pizza_types-1)
+        return last_element_included, n_pizza_types-1
     else:
-        last_element_included = pizza_types[-1] +\
-            calculate_pizzas_recursive(participants-pizza_types[-1],
-                                       n_pizza_types-1,
-                                       pizza_types[:-1])
+        return last_element_not_included, None
 
-        last_element_not_included = calculate_pizzas_recursive(participants,
-                                                               n_pizza_types-1,
-                                                               pizza_types[:-1])
-        # Return the maximum of both cases because:
-        # The maximum can never be exceed, so this is save, but the higher
-        # the closer the addition until the maximum worked then
-        return max(last_element_included,
-                   last_element_not_included)
+def calculate_pizzas_dynamic(participants, n_pizza_types, pizza_types):
+    K = [[0 for x in range(participants+1)] for x in range(n_pizza_types+1)]
 
-def write_data(types, filename):
-    """ This functions creates a pizza order text file.
-    """
+    # Build table K[][] in bottom up manner
+    for i in range(n_pizza_types+1): # y-direction
+        for w in range(participants+1): # x-direction --> Swapped in matrix
+            participants_discrepancy = w-pizza_types[i-1]
+            if(i==0 or w==0):
+                K[i][w] = 0
+            elif participants_discrepancy >= 0:  # Index w-wt[i-1] always greater than 0, getting back to residual participants, for them
+                K[i][w] = max(pizza_types[i-1] + K[i-1][participants_discrepancy], K[i-1][w])
+            else:
+                K[i][w] = K[i-1][w]
+            print(str(K[i][w]) + ' ', end='')
+        print(' ')
 
-    print('Write order to {}')
+    max_participants = K[n_pizza_types][participants]
+
+    index_list = []
+    current_person = max_participants
+    while(current_person > 0):
+        # Find row number where current_person is upper limited
+        print(current_person)
+        type_idx = min([idx for idx, l in enumerate(K) if l[current_person]==current_person])
+        print('idx', type_idx)
+        index_list.append(type_idx-1)
+        current_person = current_person - pizza_types[type_idx-1]
+
+    return max_participants, len(index_list), index_list[::-1]
 
 
 
 if __name__ == '__main__':
     SOURCE_PATH = '/media/paul/Daten/00_Data/google_hashcode_2020/a_example.in'
     SOURCE_PATH = '/media/paul/Daten/00_Data/google_hashcode_2020/b_small.in'
-    # SOURCE_PATH = '/media/paul/Daten/00_Data/google_hashcode_2020/c_medium.in'
-    # SOURCE_PATH = '/media/paul/Daten/00_Data/google_hashcode_2020/d_quite_big.in'
+    SOURCE_PATH = '/media/paul/Daten/00_Data/google_hashcode_2020/c_medium.in'
+    SOURCE_PATH = '/media/paul/Daten/00_Data/google_hashcode_2020/d_quite_big.in'
     # SOURCE_PATH = '/media/paul/Daten/00_Data/google_hashcode_2020/e_also_big.in'
 
     # Load data from dataset
@@ -106,8 +130,13 @@ if __name__ == '__main__':
     print('Number of residuals (unfeeded): {}'.format(unfeeded))
     print('Percentage: {} %'.format(unfeeded*100/pizza_types_max))
 
-    feeded_people = calculate_pizzas_recursive(pizza_types_max, n_types, slice_list)
-    print('\nOrdering pizza types in recursive calculation order: {}'.format(feeded_people))
+    # feeded_people, _ = calculate_pizzas_recursive(pizza_types_max, n_types, slice_list)
+    # print('\nOrdering pizza types in recursive calculation order: {}'.format(feeded_people))
+
+    feeded_people, n_types_rec, pizza_indexa = calculate_pizzas_dynamic(pizza_types_max, n_types, slice_list)
+    print('\nOrdering pizza types: {}'.format(pizza_indexa))
+    print('\nNumber of feeded people: {}'.format(feeded_people))
 
     # Output result file for ordering
-    # write_data(type_indexa, SOURCE_PATH)
+    write_data(len(type_indexa), type_indexa, SOURCE_PATH+'_dumb_out.txt')
+    write_data(n_types_rec, pizza_indexa, SOURCE_PATH+'_dynamic_out.txt')
